@@ -47,7 +47,29 @@ pip install -r inventory-forecasting/requirements.txt
 
 ---
 
-## 3. How to Run the System
+## 3. Dataset Setup
+
+This project uses the **Rossmann Store Sales** dataset, publicly available on Kaggle:
+
+> 📦 **Download here:** [https://www.kaggle.com/c/rossmann-store-sales/data](https://www.kaggle.com/c/rossmann-store-sales/data)
+
+After downloading, place the files in a `dataset/` folder **one level above** this repository (i.e., alongside `inventory-forecasting/`):
+
+```
+research paper/
+├── dataset/
+│   ├── train.csv      ← main sales data (1,115 stores, 730 days)
+│   ├── store.csv      ← store metadata (type, assortment, etc.)
+│   └── test.csv       ← optional
+└── inventory-forecasting/
+    └── ...
+```
+
+> **Note:** The `dataset/` CSV files are **not tracked by git** (large files). You must download them from Kaggle before running any experiments.
+
+---
+
+## 4. How to Run the System
 
 ### Run the Default Experiment (Real Data: Rossmann Store Sales)
 To run the forecasting models on the real Rossmann Store Sales dataset located in the `dataset/train.csv` and `dataset/store.csv` folders outside this directory, simply run:
@@ -82,7 +104,7 @@ $env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experi
 
 ---
 
-## 4. Verification & Testing
+## 5. Verification & Testing
 
 To run the full suite of unit tests verifying metrics and inventory calculations under edge cases (empty data, division by zero, etc.), run:
 
