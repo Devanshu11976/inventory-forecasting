@@ -49,35 +49,35 @@ pip install -r inventory-forecasting/requirements.txt
 
 ## 3. How to Run the System
 
-### Run the Default Experiment (Synthetic Data, Seed = 42)
-To reproduce the synthetic evaluation tables (Table II and Table III) and save the visualization of the grocery staple archetype forecast (Fig. 2), run:
+### Run the Default Experiment (Real Data: Rossmann Store Sales)
+To run the forecasting models on the real Rossmann Store Sales dataset located in the `dataset/train.csv` and `dataset/store.csv` folders outside this directory, simply run:
 
 ```bash
-$env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experiment.py --seed 42
+$env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experiment.py --store-ids 1 2 3
+```
+
+This loads stores 1, 2, and 3, initializes/clears the SQLite database at `inventory-forecasting/data/inventory.db`, and runs walk-forward evaluation, models, significance tests, and reorder point calculations on the real data.
+
+### Run on Synthetic Data
+To reproduce the synthetic evaluation tables (Table II and Table III) and save the visualization of the grocery staple archetype forecast (Fig. 2), use the `--synthetic-data` flag:
+
+```bash
+$env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experiment.py --synthetic-data --seed 42
 ```
 
 This will:
-1. Initialize the SQLite database at `inventory-forecasting/data/inventory.db`.
+1. Initialize/clear the SQLite database at `inventory-forecasting/data/inventory.db`.
 2. Generate synthetic demand for the three archetypes.
 3. Fit all models and execute walk-forward evaluation.
 4. Calculate metrics, run t-tests/DM-tests, and output Markdown tables to stdout.
 5. Save the generated tables in CSV format and save the grocery staple forecast chart as `inventory-forecasting/grocery_staple_forecast.png`.
 6. Reproduce the worked safety stock reduction worked calculation ($3,000 savings).
 
-### Run on Real Data (Rossmann Store Sales)
-To run the forecasting models on the real Rossmann Store Sales dataset located in `dataset/train.csv` and `dataset/store.csv`, use the `--real-data` flag:
-
-```bash
-$env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experiment.py --real-data --store-ids 1 2 3
-```
-
-This loads stores 1, 2, and 3, inits them into the SQLite database, and runs the same walk-forward evaluation, models, significance tests, and reorder point calculations on the real data.
-
 ### Run with Hyperparameter Tuning
 To enable ARIMA order search and XGBoost grid search parameter tuning, add the `--tune` flag:
 
 ```bash
-$env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experiment.py --seed 42 --tune
+$env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experiment.py --tune
 ```
 
 ---

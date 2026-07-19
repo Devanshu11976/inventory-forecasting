@@ -19,6 +19,11 @@ def load_rossmann_to_sqlite(train_csv_path, store_csv_path, db_path, store_ids=[
     df_store = pd.read_csv(store_csv_path)
     
     # 2. Filter by selected store IDs
+    if store_ids == 'all' or store_ids is None:
+        store_ids = sorted(df_store['Store'].unique().tolist())
+    else:
+        store_ids = [int(sid) for sid in store_ids]
+        
     df_train = df_train[df_train['Store'].isin(store_ids)].copy()
     df_store = df_store[df_store['Store'].isin(store_ids)].copy()
     
