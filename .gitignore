@@ -1,0 +1,54 @@
+# Large dataset files
+dataset/train.csv
+dataset/test.csv
+dataset/store.csv
+dataset/store_item_train.csv
+dataset/rossmann_smb_train.csv
+dataset/rossmann_smb_store.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Results and temporary files
+inventory-forecasting/results/
+*.png
+*.jpg
+*.pdf
+check_datasets.py
+check_store_item.py
+create_smb_subset.py
+test_tscv.py
