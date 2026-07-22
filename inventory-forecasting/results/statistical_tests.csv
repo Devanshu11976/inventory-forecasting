@@ -1,0 +1,4 @@
+dataset,model1,model2,t_statistic,t_p_value,dm_statistic,dm_p_value,significant_t,significant_dm
+rossmann_full,baseline_ma,xgboost,47.31642576011427,0.0,7.806430724852139,5.773159728050814e-15,True,True
+rossmann_full,arima,baseline_ma,2.5501621030227954,0.010777136509292544,0.04810209455670202,0.9616348769249605,True,False
+rossmann_full,arima,xgboost,44.77036553176403,0.0,3.9683441838245446,7.237375470947605e-05,True,True
