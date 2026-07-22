@@ -71,8 +71,22 @@ research paper/
 
 ## 4. How to Run the System
 
-### Run the Default Experiment (Real Data: Rossmann Store Sales)
-To run the forecasting models on the real Rossmann Store Sales dataset located in the `dataset/train.csv` and `dataset/store.csv` folders outside this directory, simply run:
+### Run the Multi-Dataset Experiment (50-Store Cross-Validation)
+To run the comprehensive multi-dataset experiment with 5-fold TimeSeriesSplit cross-validation on 50 sampled stores per dataset:
+
+```bash
+python multi_dataset_experiment.py
+```
+
+This experiment:
+- Samples 50 stores from Rossmann Full (1,115 total), Rossmann SMB (278 total), and Store Item (500 total)
+- Uses 5-fold TimeSeriesSplit with 60-day test horizons for robust evaluation
+- Trains all three models (Baseline MA, ARIMA, XGBoost) on each fold
+- Generates comprehensive results including statistical tests and plots
+- Results are saved to `results/` directory
+
+### Run the Legacy Single-Store Experiment
+For the original single-store evaluation on specific stores:
 
 ```bash
 $env:PYTHONPATH="inventory-forecasting"; python inventory-forecasting/run_experiment.py --store-ids 1 2 3
