@@ -48,7 +48,6 @@ ENV/
 Thumbs.db
 
 # Results and temporary files
-inventory-forecasting/results/*.csv
 inventory-forecasting/results/*.png
 inventory-forecasting/results/*.jpg
 inventory-forecasting/results/*.pdf
@@ -59,6 +58,12 @@ check_datasets.py
 check_store_item.py
 create_smb_subset.py
 test_tscv.py
+
+# Keep result CSVs
+!inventory-forecasting/results/summary_metrics.csv
+!inventory-forecasting/results/fold_level_metrics.csv
+!inventory-forecasting/results/all_predictions.csv
+!inventory-forecasting/results/statistical_tests.csv
 
 # Databases
 data/inventory.db
