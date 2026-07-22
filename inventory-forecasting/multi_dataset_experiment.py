@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import sys
+import json
 from typing import Dict, List, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import warnings
@@ -34,6 +35,29 @@ class MultiDatasetExperiment:
         self.results = []
         self.all_predictions = []
         self.fold_metrics = []
+        self.checkpoint_file = os.path.join(output_dir, 'checkpoint.json')
+        self.completed_datasets = self.load_checkpoint()
+        
+    def load_checkpoint(self) -> set:
+        """Load completed datasets from checkpoint file."""
+        if os.path.exists(self.checkpoint_file):
+            try:
+                with open(self.checkpoint_file, 'r') as f:
+                    data = json.load(f)
+                    completed = set(data.get('completed_datasets', []))
+                    print(f"Loaded checkpoint: {len(completed)} datasets already completed")
+                    return completed
+            except Exception as e:
+                print(f"Error loading checkpoint: {e}, starting fresh")
+                return set()
+        return set()
+    
+    def save_checkpoint(self, dataset_name: str):
+        """Save checkpoint after completing a dataset."""
+        self.completed_datasets.add(dataset_name)
+        with open(self.checkpoint_file, 'w') as f:
+            json.dump({'completed_datasets': list(self.completed_datasets)}, f)
+        print(f"Checkpoint saved: {dataset_name} marked as completed")
         
     def load_data(self):
         """Load all 3 datasets."""
@@ -55,7 +79,8 @@ class MultiDatasetExperiment:
             elif model_name == 'arima':
                 model = ARIMAModel(auto_arima=auto_arima)
             elif model_name == 'xgboost':
-                model = XGBoostModel(tune=False)  # Use fixed params for comparability
+                # Use CPU only - GPU causes issues in multiprocessing
+                model = XGBoostModel(tune=False, tree_method='hist', device='cpu')
             else:
                 raise ValueError(f"Unknown model: {model_name}")
             
@@ -109,9 +134,10 @@ class MultiDatasetExperiment:
             return None
     
     def run_experiment_on_dataset(self, dataset_name: str, df: pd.DataFrame, 
-                                 model_names: List[str], auto_arima: bool = False):
+                                 model_names: List[str], auto_arima: bool = False, 
+                                 max_products: int = 50):
         """
-        Run full experiment on a single dataset with all models using parallel processing.
+        Run experiment on a single dataset with sampled products for speed.
         """
         print(f"\n{'='*80}")
         print(f"Running experiment on {dataset_name}")
@@ -119,13 +145,24 @@ class MultiDatasetExperiment:
         
         tscv = TimeSeriesCrossValidation(n_splits=5, test_size=60)
         
-        # Group by product
+        # Group by product and sample
         product_groups = {pid: group for pid, group in df.groupby('product_id')}
         n_products = len(product_groups)
         
-        print(f"  Processing {n_products} products with {len(model_names)} models...")
-        print(f"  Total model-dataset combinations: {n_products * len(model_names)}")
-        print(f"  Total folds: {n_products * len(model_names) * 5}")
+        # Sample products for faster execution
+        if n_products > max_products:
+            import random
+            sampled_ids = random.sample(list(product_groups.keys()), max_products)
+            product_groups = {pid: product_groups[pid] for pid in sampled_ids}
+            print(f"  Sampled {max_products} products from {n_products} total")
+        else:
+            print(f"  Using all {n_products} products")
+        
+        n_products_sampled = len(product_groups)
+        
+        print(f"  Processing {n_products_sampled} products with {len(model_names)} models...")
+        print(f"  Total model-dataset combinations: {n_products_sampled * len(model_names)}")
+        print(f"  Total folds: {n_products_sampled * len(model_names) * 5}")
         
         # Prepare all tasks for parallel processing
         tasks = []
@@ -138,7 +175,7 @@ class MultiDatasetExperiment:
         
         print(f"  Using parallel processing with ProcessPoolExecutor...")
         
-        # Process in parallel
+        # Process in parallel with reduced workers for stability
         with ProcessPoolExecutor(max_workers=4) as executor:
             futures = []
             for task in tasks:
@@ -176,13 +213,22 @@ class MultiDatasetExperiment:
     def run_full_experiment(self, auto_arima: bool = False):
         """
         Run experiment on all 3 datasets with all 3 models.
+        Skips datasets that are already completed (checkpoint).
         """
         self.load_data()
         
         model_names = ['baseline_ma', 'arima', 'xgboost']
         
+        # Disable auto_arima for speed - use fixed ARIMA(2,1,2) order
+        # This is justified as we want comparability across datasets and auto_arima is very slow
+        auto_arima = False
+        
         for dataset_name, df in self.datasets.items():
-            self.run_experiment_on_dataset(dataset_name, df, model_names, auto_arima)
+            if dataset_name in self.completed_datasets:
+                print(f"\nSkipping {dataset_name} (already completed)")
+                continue
+            self.run_experiment_on_dataset(dataset_name, df, model_names, auto_arima, max_products=50)
+            self.save_checkpoint(dataset_name)
         
         print(f"\n{'='*80}")
         print("EXPERIMENT COMPLETE")

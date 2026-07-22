@@ -10,7 +10,7 @@ class XGBoostModel(BaseModel):
     XGBoost Model (Section III-C: 200 estimators, max_depth=4, learning_rate=0.05).
     Also includes a tune=True mode using GridSearchCV.
     """
-    def __init__(self, tune=False, n_estimators=200, max_depth=4, learning_rate=0.05, random_state=42):
+    def __init__(self, tune=False, n_estimators=200, max_depth=4, learning_rate=0.05, random_state=42, tree_method='hist', device='cuda'):
         super().__init__()
         self.tune = tune
         self.params = {
@@ -19,7 +19,8 @@ class XGBoostModel(BaseModel):
             'learning_rate': learning_rate,
             'random_state': random_state,
             'objective': 'reg:absoluteerror',  # Optimizes for Mean Absolute Error
-            'n_jobs': -1
+            'tree_method': tree_method,  # 'hist' for faster training
+            'device': device  # 'cuda' for GPU acceleration
         }
         self.model = None
         self.history_df = None

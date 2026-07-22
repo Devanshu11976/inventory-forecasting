@@ -44,7 +44,10 @@ ENV/
 Thumbs.db
 
 # Results and temporary files
-inventory-forecasting/results/
+inventory-forecasting/results/*.csv
+inventory-forecasting/results/*.png
+inventory-forecasting/results/*.jpg
+inventory-forecasting/results/*.pdf
 *.png
 *.jpg
 *.pdf
