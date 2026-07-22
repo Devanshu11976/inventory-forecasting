@@ -27,6 +27,10 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 
 # Virtual environments
 venv/
@@ -55,3 +59,11 @@ check_datasets.py
 check_store_item.py
 create_smb_subset.py
 test_tscv.py
+
+# Databases
+data/inventory.db
+
+# Output artifacts
+data/table_ii.csv
+data/table_iii.csv
+grocery_staple_forecast.png
