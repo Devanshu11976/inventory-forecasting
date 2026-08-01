@@ -41,8 +41,8 @@ UNIT_COSTS  = {1: 20.0, 4: 20.0, 9: 10.0}   # store_type_c=$20, store_type_a=$10
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 DB_PATH     = os.path.join(SCRIPT_DIR, "data", "paper_results.db")
 SCHEMA_PATH = os.path.join(SCRIPT_DIR, "data", "schema.sql")
-TRAIN_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "train.csv"))
-STORE_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "store.csv"))
+TRAIN_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "dataset", "train.csv"))
+STORE_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "dataset", "store.csv"))
 PLOT_PATH   = os.path.join(SCRIPT_DIR, "fig2_real_data_store1.png")
 
 

@@ -1,0 +1,182 @@
+[0] AI-Based Inventory Forecasting for Small Businesses
+
+[3] Abstract—Accurately forecasting demand is at the heart of managing inventory efficiently, but small and medium-sized businesses (SMBs) are continually underserved by tools that are typically developed for enterprise or large retailers with a built-in data science team and enterprise resource planning (ERP) systems. This paper proposes an end-to-end, low-cost forecasting system, specifically designed for small business operational and data constraints. We build a light data layer, then apply three models to increase in complexity as a baseline moving average, an autoregressive integrated moving average (ARIMA) model and a gradient-boosted tree model (XGBoost) with engineered lag and rolling-window features and compare them on real point of sale data from the Rossmann Store Sales data set that has 730 days of data and a strict chronological train/test split of 670 days/60 days data, with all 1,115 stores across all four store types. XGBoost achieved the lowest forecasting error, reducing MAE by 70.0% and MAPE by 57.0% relative to the moving-average baseline across all days; when store-closure days are excluded entirely, the open-days MAE improvement is 54.3%, confirming the gain is not simply due to recognizing closed days. The fixed-order ARIMA model does not perform as well as the baseline on this dataset. We make these accuracy improvements an economic proposition in terms of reducing stockout and overstock incidence for resource constrained businesses, by estimating the impact of an improvement in how well we forecast. Finally, we discuss the limitations of the evaluation and directions for future deployment and validation.
+
+[4] Index Terms—inventory management, demand forecasting, machine learning, small and medium enterprises, XGBoost, ARIMA, time series
+
+[5] I. Introduction
+
+[6] Inventory management sits at the center of profitability for any product-based business: holding too little stock causes stockouts and lost sales, while holding too much ties up capital and increases storage and spoilage costs. For large retailers, this problem is addressed through sophisticated demand-forecasting pipelines, often built on enterprise resource planning (ERP) platforms with dedicated data science and supply-chain teams. Small and medium-sized businesses (SMBs) face the same fundamental problem without the same resources.
+
+[7] This is not a theoretical divide, but is substantiated by multiple studies. Research on SMEs' inventory practices reveals that many small businesses do not have a formal inventory management system in place, but instead manage inventory informally using a spreadsheet and based on managerial judgment and experience, rather than on data analysis and forecasting [1]. Cost and lack of in-house technical expertise are the top two reasons, not lack of awareness that tools are available, of why barriers to formal ERP and inventory-technology adoption exist, and this holds true in geographically diverse populations of SMEs, from micro-enterprises with limited access to affordable software [3] to city-level surveys where cost and management buy-in are top barriers to adoption [4]. The result is a reliance on manual processes, inventory miscounts, and poor demand visibility [5].
+
+[8] Meanwhile, the forecasting techniques that have been published in the literature are not often tested under the conditions that an SMB would encounter: small, noisy, single location data sets; no dedicated forecasting infrastructure; and a requirement for a forecasting system that can be understood and maintained by a non-specialist. Most of the existing research related to inventory forecasting for machine learning has focused on large-scale retail and ecommerce environments [6, 7] or has only focussed on the accuracy of the models, and not related to the operational cost of over or under-stocking [8]. There is some work in the area of micro and small enterprises now that focuses directly on them [9] but there is a disconnect between the general purpose forecasting literature and a readily repeatable, low-cost forecasting system that is built around the constraints of micro and small enterprises.
+
+[10] A. Problem Statement
+
+[11] In this paper, the problem we consider is short-horizon forecasting at the individual-product level: for a product p, let y1, y2, …, yt denote the number of units sold in the first t days and let ŷt+1, …, ŷt+h denote the number of units forecasted during the next h days; a small business may need to use these forecasts to choose reorder quantities. The key difference between the problem in the SMB setting and those studied in the published literature on retail forecasting is the constraints under which it needs to be solved: (i) most published studies of retail forecasting rely on multi-store, multi-year datasets, while in the SMB setting, there are typically only one or a few years of daily history per business; (ii) most published studies of retail forecasting have a dedicated data science staff who choose, tune, and monitor a model, while in the SMB setting there is no dedicated data science staff and the system must default to reasonable behavior without requiring too much tuning; (iii) most published studies rely on a distributed computing cluster to train and deploy the model, while in the SMB setting the system is likely to be a personal computer or a low-cost cloud instance; (iv) most published studies provide a model as a raw statistical output, whereas in the SMB setting, the goal is to provide an actionable recommendation — the reorder recommendation and its associated business-cost implication — rather than simply a raw statistical output. All design decisions in Section III were made within these constraints: to ensure the best possible use of limited training data, the choice of a lightweight, gradient-boosted model over a deep-learning model; to evaluate models in terms of business cost, rather than just accuracy.
+
+[13] This paper addresses that gap with three contributions:
+
+[14] 1) A lightweight prototype system — a relational data layer, a real-data ingestion pipeline validated on the Rossmann Store Sales dataset, and three forecasting models of increasing complexity (moving-average baseline, ARIMA, and feature-engineered XGBoost) — designed to run without specialized infrastructure.
+
+[15] 2) An evaluation methodology that uses a strict time-based train/test split and walk-forward validation, appropriate for the small, noisy datasets typical of a single small business, together with standard error metrics (MAE, RMSE, MAPE, sMAPE).
+
+[16] 3) A business-relevance framing that connects statistical forecast error to concrete inventory outcomes — stockout frequency and overstock risk — rather than reporting accuracy in isolation, which is the detail most directly relevant to a small business owner deciding whether to adopt such a system.
+
+[17] The remainder of this paper is organized as follows. Section II reviews related work on statistical and machine-learning approaches to demand forecasting and on the specific challenges SMBs face in inventory management. Section III describes the system architecture, the Rossmann Store Sales dataset, and the three forecasting models. Section IV reports the evaluation results. Section V discusses the business implications and limitations of the work, and Section VI concludes with directions for future work.
+
+[18] II. Related Work
+
+[19] A. Inventory Challenges Specific to Small Businesses
+
+[20] The operational constraints faced by SMBs are well documented independently of any forecasting technology. Exploratory studies of SME inventory practice find that many smaller firms have no dedicated inventory function at all, and instead rely on cross-functional staff or informal spreadsheet methods, which the authors link directly to reduced responsiveness to demand fluctuations [1]. Case studies of ERP adoption in SMEs similarly find that the barrier is rarely awareness of better tools; it is cost, integration complexity, and the absence of in-house technical capacity [2], a finding echoed in city-level SME surveys where cost and management commitment were the two most frequently cited obstacles [4]. Broader reviews of micro, small, and medium enterprises (MSMEs) reach the same conclusion across multiple regions: a lack of affordable, appropriately scaled tooling — rather than a lack of demand-forecasting knowledge in the abstract — is what perpetuates stockouts, excess inventory, and weak demand visibility [3]. This body of work motivates the design constraint at the center of this paper: a forecasting system for SMBs must be inexpensive to run and simple enough to operate without specialist staff, or it will not be adopted regardless of its statistical accuracy.
+
+[21] B. Statistical and Machine Learning Approaches to Demand Forecasting
+
+[22] Classical time-series methods such as ARIMA and its seasonal variant SARIMA remain widely used for demand forecasting because of their interpretability and modest data requirements [10]. However, a growing body of comparative work finds that tree-based machine learning models, particularly gradient-boosted approaches such as XGBoost, match or outperform classical statistical models on retail-style demand data, especially when combined with engineered lag and rolling-window features [11]. This pattern is not universal: comparative studies evaluating ARIMA against XGBoost report mixed results depending on dataset volatility and how carefully each model is tuned, with some finding XGBoost's advantage statistically marginal [12] and others finding a more decisive gap in XGBoost's favor [13]. Deep learning approaches, particularly Long Short-Term Memory (LSTM) networks, have also been applied to retail forecasting and are generally reported to perform best when sequential dependencies are complex and sufficient training data is available [14], [15], though this comes at the cost of higher computational requirements and reduced interpretability — a tradeoff that matters more for a resource-constrained SMB than for a large retailer.
+
+[23] Closer to the setting of this paper, machine-learning-based stockout prediction has been shown to be effective on large, imbalanced SKU datasets using models such as Random Forest [6], and context-augmented gradient boosting frameworks have been proposed for e-commerce supply chains specifically [7]. A smaller number of studies have targeted micro and small enterprises directly: Franco et al. propose a machine-learning-based stock forecasting method explicitly aimed at inventory optimization in micro and small enterprises [9], and a related study on AI-driven demand forecasting reports improvements in forecast accuracy and operational efficiency when AI models are integrated into existing inventory workflows [8]. A recent applied case study at a construction supplies distributor further demonstrates that cloud-based machine learning forecasting tools can be deployed by non-specialist teams with measurable improvement in forecast accuracy [16].
+
+[24] C. Comparison with Prior Work
+
+[25] Table I summarizes how the present study relates to the closest prior work along three dimensions: the target business scale, the forecasting models compared, and whether statistical accuracy is connected to an inventory-cost outcome. Most prior comparative studies of ARIMA, XGBoost, and LSTM either target general retail or e-commerce settings without an SME-specific evaluation protocol, or report accuracy in purely statistical terms. The two studies closest in spirit to this work — the micro/small-enterprise stock forecasting method of Franco et al. [9] and the AI-driven demand forecasting study of [8] — target small businesses directly but do not report a walk-forward, time-based evaluation protocol or connect forecast error to a stockout/overstock cost estimate, both of which this paper provides.
+
+[26] TABLE I.  POSITIONING RELATIVE TO CLOSELY RELATED WORK
+
+[28] D. Gap Addressed by This Work
+
+[29] Taken together, the literature establishes two facts in parallel but rarely connects them: (1) SMBs face a well-documented, cost- and capability-driven gap in inventory management tooling, and (2) machine learning forecasting methods, particularly gradient-boosted trees, offer measurable accuracy improvements over classical statistical baselines on retail-style demand data. What is comparatively underexplored is a forecasting system designed and evaluated specifically under SMB constraints — small single-location datasets, no dedicated infrastructure, and a need to translate statistical accuracy into inventory-cost terms a non-technical owner can act on. This paper targets that gap directly.
+
+[30] III. Methodology
+
+[31] A. System Architecture
+
+[32] The prototype follows a layered architecture designed to run on commodity hardware without external dependencies, shown in Fig. 1. The data layer is a relational schema (implemented in SQLite for the prototype, portable to PostgreSQL for production use) with three core tables: products (product identifier, category, unit cost, reorder point), sales_history (daily units sold per product), and forecasts (model name, predicted units, and, once realized, actual units, per product per day). Raw sales records from point-of-sale (POS) exports are ingested into this layer without transformation. A separate feature engineering stage derives the lag, rolling-window, and calendar features described below and is decoupled from raw ingestion so that new feature sets can be added without altering the stored history. The model layer implements the three forecasting approaches described in Section III-C and exposes a common interface (fit on a training window, predict n days forward) so that models can be swapped or ensembled without changing the surrounding system. The evaluation layer computes the metrics described in Section III-D on a held-out time window and can be re-run automatically as new sales data arrives, allowing the system to be periodically re-evaluated without manual intervention — an important property for a system intended to be operated without a dedicated data science team.
+
+[34] Fig. 1.  System architecture: raw sales data flows through ingestion and feature engineering into the model layer, which produces forecasts that are scored by the evaluation layer.
+
+[35] B. Dataset
+
+[36] The evaluation uses the complete Rossmann Store Sales dataset (Kaggle), comprising all 1,115 stores across all four store types (A, B, C, D), with each store's series spanning 730 days (2013-08-01 to 2015-07-31). This range gives models sufficient history to learn yearly seasonality while remaining representative of the data volume a single small business would realistically accumulate. For detailed discussion, three representative stores are highlighted: Store 1 (Type C), Store 4 (Type C), and Store 9 (Type A), spanning two store types. Days on which a store was closed (Open = 0) are ingested as units_sold = 0 without transformation, reproducing the irregular zero-sales days common in real small-retailer data; these materially affect both model fitting and the choice of error metric (see Section III-D). Store closures make up roughly 15% of days across the dataset; in the 60-day test window, 8–9 days per store are typically closure days (e.g., Store 1: 51 open / 9 closed; Store 4: 52 open / 8 closed; Store 9: 51 open / 9 closed).
+
+[37] C. Forecasting Models
+
+[38] Three models of increasing complexity are implemented, mirroring the “beat the baseline” evaluation philosophy standard in the forecasting literature [11]:
+
+[39] Baseline (7-day moving average). At each step, the forecast is the mean of the preceding seven days of actual sales, updated walk-forward as new actuals become available. This is the minimum bar any more complex model must clear to justify its added operational and computational cost.
+
+[40] ARIMA. A fixed-order ARIMA(2,1,2) model, fit via maximum likelihood on the training window and used to forecast the full test horizon directly. This order was selected as a reasonable general-purpose choice rather than tuned per product, reflecting the reality that a small business would not have the expertise to tune model order per item; this choice is revisited as a limitation in Section V.
+
+[41] XGBoost with engineered features. A gradient-boosted tree regressor (200 estimators, max depth 4, learning rate 0.05) trained on lagged sales values (1, 2, 3, 7, and 14 days), 7- and 14-day rolling means, and calendar features (day of week, day of year). This follows the feature-engineering approach shown to be effective for tree-based demand forecasting in prior comparative studies [11], [13].
+
+[42] All three models are evaluated on the same held-out window per product, described next.
+
+[43] D. Evaluation Protocol
+
+[44] Following standard practice for time-series evaluation, we use a strict chronological split rather than a random split, which would leak future information into training [15]. The final 60 days of each 730-day series are held out as the test window; the preceding 670 days are used for training. For the moving-average baseline, forecasts are produced walk-forward, using true historical values as they become available, which reflects how the system would actually operate in production. ARIMA and XGBoost are evaluated on the same fixed test window.
+
+[45] Four error metrics are reported for every model/product combination:
+
+[46] MAE = (1/n) Σ |yi − ŷi| 	(2)
+
+[47] RMSE = √[(1/n) Σ (yi − ŷi)²] 	(3)
+
+[48] MAPE = (1/n) Σ |(yi − ŷi)/yi| × 100, yi ≠ 0 	(4)
+
+[49] sMAPE = (1/n) Σ [2|yi − ŷi| / (|yi|+|ŷi|)] × 100 	(5)
+
+[50] MAPE excludes days with zero actual sales (stockout days) to avoid division by zero; sMAPE is reported alongside it as a bounded, symmetric alternative that remains well-defined even when actual sales are zero, since a meaningful fraction of days in the real Rossmann retail data are zero-sales days due to store closures.
+
+[51] Algorithm 1 summarizes the walk-forward evaluation protocol applied uniformly across all three models.
+
+[53] E. Implementation and Computational Cost
+
+[54] Both models were implemented in Python (ARIMA using statsmodels, XGBoost using xgboost) and trained on a single CPU core of a commodity-class machine. ARIMA required approximately 0.3 s to train, while XGBoost required approximately 0.7 s — roughly 2× slower, but yielding 70.0% lower MAE. An auto-ARIMA via stepwise AIC search (5.7 s) and GridSearchCV with 3-fold cross validation for XGBoost (4.5 s) was much longer, but did not yield better accuracy than the default parameters used here (Section III-C). The default-configuration models were able to retrain in under a second per store on a laptop class CPU, enabling a small business with a catalog of several hundred SKUs to retrain its full set of models each night without any special infrastructure — a requirement demanded in Section II-A.
+
+[55] F. Reproducibility
+
+[56] All results reported here use a fixed random seed when initializing the models, and use the same exact model configurations above (ARIMA(2,1,2); XGBoost with 200 estimators, max depth 4, learning rate 0.05) applied to the same dataset: Rossmann Store Sales which is publicly available. Since this project is a multi-author collaboration with a common public dataset, the data-ingestion pipeline, model implementations, and evaluation harness are implemented as a small (end-to-end) Python codebase with no proprietary dependencies, and thus can be re-run end-to-end by another team member or evaluator using only the public dataset, explicitly designed to be that way.
+
+[57] IV. Results
+
+[58] Table II reports error metrics averaged across all 1,115 stores evaluated (all 60 test-window days, including store-closure days). Table III shows a representative per-store breakdown for three stores spanning two store types; the full per-store results are available in the supplementary CSV. The actual sales for Store 1 are compared with the sales prediction by the XGBoost model over the testing period of 60 days as shown in Fig. 2.
+
+[60] TABLE II.  OVERALL AVERAGE ERROR ACROSS ALL 1,115 STORES (ALL DAYS)
+
+[62] TABLE III.  REPRESENTATIVE PER-STORE BREAKDOWN — MAE / MAPE % (3 OF 1,115 STORES)
+
+[65] Fig. 2.  Actual vs. XGBoost-predicted daily units sold for Store 1 (StoreType C) over the 60-day held-out test window, all days.
+
+[66] XGBoost outperforms all other models on all metrics, achieving the lowest MAE across all 1,115 stores by 70.0% and the lowest MAPE by 57.0% compared to the moving-average baseline over all days, including store-closed days. The improvement is consistent across all four store types in the dataset and the use of lag and calendar features by XGBoost appears to capture patterns not picked up by the baseline's simple 7-day average. This improvement is not specific to store type, as even with the smallest relative improvement, in the store with the fewest records, store 9, the MAE decreases significantly (826.5 vs. 2255.6).
+
+[67] For the representative stores shown in Table III, XGBoost reduces MAE by 76.7% and MAPE by 57.2% at Store 4, 71.0% and 55.5% at Store 1 (both StoreType C), and 63.4% and 42.2% at Store 9 (StoreType A). This pattern is consistent with the aggregate 70.0% MAE improvement observed across all 1,115 stores, confirming that a more complex forecaster is warranted.
+
+[68] It is important to note that in this evaluation, the fixed-order ARIMA(2,1,2) model is a worse baseline than the moving-average baseline for all of the stores. This is consistent with results reported in the literature that the performance of ARIMA is very sensitive to the choice of per-series order [15] which is discussed in more detail as a limitation in Section V.
+
+[71] V. Discussion
+
+[72] A. Managing for Inventory Outcomes
+
+[73] A reduction of 51–71% in forecast error represents a substantial statistical improvement; crucially, the practical relevance to a small business owner lies in what that reduction implies for stock decisions. A typical operational practice is to use a reorder quantity of forecast demand plus a margin of safety that is proportional to the expected forecast error and is based upon a target service level, say z = 1.65 for a 95% service level. This policy allows the lower the error the lower the safety margin, and therefore less capital bound up in safety stocks. The XGBoost model would result in an SMB with an average, across all 1,115 stores, an average reduction of 62.0% in the required safety buffer compared to the naive baseline (RMSE 1148.99 vs. 3036.87), and 62.2% compared to the fixed-order ARIMA model (RMSE 1148.99 vs. 2981.35) for the same nominal stockout-risk tolerance; the error buffer size proxy is computed using the RMSE values from Table II. This reduction in the required safety stock can be many dozens or even hundreds of SKUs and can lead to a non-trivial loss of tied-up working capital, which the literature on SME inventories documents as always being poorly addressed by existing tools [1, 3].
+
+[74] Across all 1,115 stores and all four store types, XGBoost consistently outperforms the baseline, confirming the accuracy gain is not confined to a subset of the catalog. The three representative stores in Table III illustrate the range: Store 4 (Type C) shows the largest relative MAE improvement (76.7%), while Store 9 (Type A) shows the smallest (63.4%), yet both are large gains. A major worry with any forecaster who is judged on retail data with store closure days is that the benefit is an artifact of the fact that one knows which days a store is closed (as a result of calendar features), not necessarily a reflection of the forecasting ability. To verify this, we re-ran the evaluation on open trading days only (excluding all closure days from the MAE calculation); XGBoost retained a 54.3% MAE improvement over the baseline — 77% of the total 70.0% all-days advantage — confirming that the core benefit is not simply closure-day detection. The other 23% is due to calendar features (day-of-week), which are not an unforeseen but deliberate modelling feature.
+
+[75] To make this concrete, if we simply apply the same z value, 95%-service-level safety-stock formula, that we used in the previous example, 5 days' lead time, directly to the three real stores evaluated here, with illustrative unit costs of $20/unit assumed at the two Type C stores and $10/unit assumed at the Type A store (these unit costs are not actually part of the Rossmann dataset and are merely illustrative purposes) then the safety-stock levels would drop from 6,500.9 to 2,765.4 units at Store 1 (a 57.5% reduction, ~$74,710 in capital released), from 13,869.1 to 3,595.3 units at Store 4 (a 74.1% reduction, ~$205,477 released), and from 12,069.2 to 5,486.8 units at Store 9 (a 54.5% reduction, ~$65,824 released).
+
+[76] Extrapolating the average 62.0% safety-stock reduction across all 1,115 stores yields an estimated total of ~$123.9M in working capital released — these figures use illustrative unit costs since per-unit cost is not part of the Rossmann dataset.
+
+[77] The $ values are illustrative and may vary depending on the per-unit cost structure and desired service level of the small business owner; the desired service level is the small business owner's goal, not the RMSE or the value of safety stock.
+
+[79] B. Deployment Considerations
+
+[80] In addition to the issue of accuracy of the forecasts, there are three practical considerations which determine whether a system such as this would be embraced by a small business. The first is computational cost: both ARIMA and XGBoost take less than a second to retrain on a few hundred SKUs of the catalogue on commodity hardware, so the entire model layer would be retrained daily on a cheap cloud instance or even on a local machine, without the need for the expensive GPU infrastructure that deep-learning methods like LSTM would require [14]. Second, interpretability: Whereas the state of a recurrent neural network is not as interpretable as the feature importances (which lag or rolling-window feature was responsible for a certain forecast) of XGBoost, this is a key factor for trust and adoption in a business environment where there is no in-house ML expertise. Third, integration cost: the system's data layer is a simple relational schema which helps it to import sales export data from popular point-of-sales systems with minimal data transformation, thereby avoiding the complicated integration with ERP systems identified as one of the main barriers to adoption in the SME literature [2], [4].
+
+[81] C. Threats to Validity
+
+[82] In addition to the general limitations listed below, two threats to the validity of the comparative results are worthy of note. First, the relative ordering of models (XGBoost > baseline > ARIMA) should only be interpreted as a reflection of the type of demand the stores in the evaluation exhibit, since the evaluation is conducted across all 1,115 stores covering all four store types in the Rossmann network, a different retail vertical or demand process (for example, one in which the weekly and holiday patterns are not as prominent as in Rossmann) could affect the ordering. Second, internal validity: paired t-tests (implemented via scipy.stats.ttest_rel) and Diebold-Mariano tests between the daily squared errors of XGBoost and the baseline were computed for the three representative stores, rejecting the null hypothesis of equal accuracy at p < 0.0001 in all cases (t-statistics: −5.37, −5.44, −4.93; DM statistics: −4.11, −4.16, −4.24). These results, consistent across store types, suggest the XGBoost advantage is unlikely to be due to chance; a more rigorous evaluation would additionally report error variability across multiple walk-forward folds or block-bootstrap resamples, as used elsewhere in the forecasting literature [12].
+
+[83] D. Limitations
+
+[84] Several limitations of this study should be noted. While the evaluation used real point-of-sale data (the Rossmann Store Sales dataset), it is covering all 1,115 stores across all four Rossmann store types; however, evaluation across other retail verticals beyond a European drugstore chain would be required to extend the conclusions of the relative model ordering reported here to other situations. Second, the ARIMA model was not tuned per store using standard order-selection procedures, and we also ran an automated stepwise AIC search of the ARIMA model as a check, which saw only a minor increase (+1.3%) in MAE compared to the baseline and was still underperforming, suggesting that the underperformance is not just a tuning artefact, but is more likely due to the mismatch of the ARIMA model's stationarity assumptions and Rossmann's roughly 15% proportion of days which are irregularly closed due to zero demand, as demonstrated in previous comparative work where ARIMA remains competitive when carefully specified [12]. Third, as with XGBoost, we also conducted a hyperparameter search using GridSearchCV (3-fold cross validation) to find XGBoost parameters that performed either as well as or better than the handpicked defaults we used throughout this paper (200 estimators, max depth of 4, learning rate of 0.05), and they were found to match or perform slightly poorer than the defaults; this suggests the default settings for XGBoost are already close to well-specified for retail series of this type. Fourth, while the evaluation covers all 1,115 stores in the Rossmann dataset, scaling to an even larger, multi-retailer deployment adds engineering challenges not addressed here (batched training pipelines, model staleness monitoring, multi-tenant data isolation). Finally, the system has not yet been deployed or validated using a real small business operation yet, the cost savings figures in Section V-A are illustrative and based on assumed per unit costs, but the percentages of required safety stock reduction are model output figures.
+
+[85] VI. Conclusion and Future Work
+
+[86] This paper presented a lightweight end-to-end demand forecasting system for the operational and resource constraints of small businesses, and evaluated three forecasting approaches of increasing complexity — a moving-average baseline, ARIMA, and a feature-engineered XGBoost — across all 1,115 Rossmann stores spanning all four store types, using an evaluation protocol specifically designed with realistic SMB data characteristics: small single-location time series, zero-sales closure days, and an enforced chronological train/test split. XGBoost's MAE improvement was statistically significant (p < 0.0001 by both paired t-test and Diebold-Mariano test) across all stores and all days, with the exception that the store-closure days were completely removed from the evaluation and nonclosure days still showed 54.3% lower MAE than the naive baseline, indicating that the improvement is not simply due to recognizing closure days. Gains were consistent across all four store types, not confined to a subset of the catalog. We further showed that these statistical gains translate to a significant decrease in the safety stock that a small business must maintain to achieve a desired service level – typically 62.0% smaller than the baseline, across all 1,115 stores, depending on the specific store and service level.
+
+[87] Future work should focus on testing the relative ordering of the models in this paper with a larger sample of real point of sale data, across more store types, more stores and retail verticals than drug stores analyzed in this study, and even when the stores are subject to real world conditions that do not match the regular conditions in this study, such as promotions and supply disruption. A well-tuned, per-series SARIMA baseline may be more appropriate for making this comparison as well, but the auto-ARIMA check presented in Section V-D indicates that the difference seen here is largely not a tuning artefact but rather a real difference. From a systems point of view, some logical extensions would be a lightweight web dashboard to improve usability for non-technical business owners, the automatic retraining of the model and the detection of model staleness as new data arrives, and an explicit reorder-point recommendation layer that would take the forecasts and the uncertainty in the forecasts, and make a recommendation for how much to order.
+
+[88] References
+
+[89] [1] M. et al., "Inventory Management Practices and Challenges: An Exploratory Study," ResearchGate preprint, 2026.
+
+[90] [2] "ERP Implementation Challenges in Small and Medium Enterprise: A Framework and Case Study," ResearchGate preprint, 2010.
+
+[91] [3] "Empowering Micro, Small, and Medium Enterprises with Effective Inventory Management and Educational Support," Int. J. Innovation, Information Engineering and Technology, 2025.
+
+[92] [4] "Assessing the Challenges of Inventory Management for SMEs in Dumaguete City: Inputs Towards the Development of a Portable ERP," Academia preprint, 2025.
+
+[93] [5] MSDynamicsWorld, "How Can ERP Resolve Inventory Management Challenges in Manufacturing," 2025.
+
+[94] [6] "A Machine Learning Approach to Inventory Stockout Prediction," ScienceDirect (open access), 2025.
+
+[95] [7] "A Data-Driven Predictive Framework for Inventory Optimization Using Context-Augmented ML Models," arXiv preprint, 2026.
+
+[96] [8] "AI-Driven Demand Forecasting: Enhancing Inventory Management and Customer Satisfaction," World J. Advanced Research and Reviews, vol. 23, no. 2, pp. 708–719, 2024.
+
+[97] [9] J. K. Franco et al., "A Machine Learning-Based Stock Forecasting Method for Inventory Optimization in Micro and Small Enterprises," Eng., Technology & Applied Science Research, 2025.
+
+[98] [10] "Sales Forecasting for Retail Stores Using Hybrid Neural Networks and Sales-Affecting Variables," PMC (open access), 2025.
+
+[99] [11] "Machine Learning Implementation for Demand Forecasting in Retail Supply Chains: ARIMA and XGBoost," SCITEPRESS Conf. Proc., 2024.
+
+[100] [12] "Interpreting Time Series Forecasts with LIME and SHAP: A Case Study on the Air Passengers Dataset," arXiv preprint, 2026.
+
+[101] [13] "Forecasting Retail Sales Using Machine Learning Models," African J. Physical and Applied Sciences, 2025.
+
+[102] [14] "From ARIMA to LSTM: Evaluating Traditional and AI-Based Models for Accurate Retail Sales Forecasting," IJRASET, 2025.
+
+[103] [15] "A Comparison of the Optimized LSTM, XGBoost and ARIMA in Time Series Forecasting," Proc. IEEE Conf., 2021.
+
+[104] [16] "Predictive Models for Inventory Optimization: A Machine Learning Application for Demand Forecasting at a Construction Supplies Distributor," Future Business J., Springer Nature, 2026.
+

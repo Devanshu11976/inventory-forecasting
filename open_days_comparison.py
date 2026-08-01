@@ -36,8 +36,8 @@ TEST_DAYS   = 60
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 DB_PATH     = os.path.join(SCRIPT_DIR, "data", "open_days.db")
 SCHEMA_PATH = os.path.join(SCRIPT_DIR, "data", "schema.sql")
-TRAIN_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "train.csv"))
-STORE_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "store.csv"))
+TRAIN_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "dataset", "train.csv"))
+STORE_CSV   = os.path.abspath(os.path.join(SCRIPT_DIR, "dataset", "store.csv"))
 PLOT_PATH   = os.path.join(SCRIPT_DIR, "fig_open_days_store1.png")
 
 
